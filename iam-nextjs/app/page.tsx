@@ -11,17 +11,6 @@ import Chatbot from '../components/Chatbot';
 import ActionPanel from '../components/ActionPanel';
 import { getMockServiceAccount, getMockValidationResult, getEvidenceFiles } from '../data/mockData';
 
-// Use the rich mock data
-const mockAccountData = getMockServiceAccount('svc-usr123');
-const mockValidationResult = getMockValidationResult();
-const mockEvidenceFiles = getEvidenceFiles();
-
-const mockData = {
-  accountData: mockAccountData,
-  validationResult: mockValidationResult,
-  evidence: mockEvidenceFiles
-};
-
 export default function Home() {
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
@@ -37,7 +26,29 @@ export default function Home() {
     
     // Simulate API call
     setTimeout(() => {
-      setValidationResult(mockData);
+      // Get the mock data
+      const mockAccountData = getMockServiceAccount(accountId);
+      const mockValidationResult = getMockValidationResult();
+      const mockEvidenceFiles = getEvidenceFiles();
+
+      // Structure the data properly for ResultPanel
+      const structuredResult = {
+        accountId: mockAccountData.account_id,
+        accountType: mockAccountData.metadata.account_type,
+        status: 'Active',
+        lastActivity: mockAccountData.last_used,
+        riskScore: mockValidationResult.score === '78%' ? 'MEDIUM' : 'LOW',
+        violations: mockValidationResult.violations,
+        compliance: mockValidationResult.compliance,
+        recommendation: mockValidationResult.recommendation,
+        explanation: mockValidationResult.explanation,
+        // Include the original data for evidence viewer
+        accountData: mockAccountData,
+        validationResult: mockValidationResult,
+        evidence: mockEvidenceFiles
+      };
+
+      setValidationResult(structuredResult);
       setIsValidating(false);
     }, 2000);
   };
@@ -211,14 +222,14 @@ export default function Home() {
 
       {/* Chatbot */}
       <Chatbot 
-        accountData={validationResult}
-        validationResult={validationResult}
+        accountData={validationResult?.accountData}
+        validationResult={validationResult?.validationResult}
       />
 
       {/* Modals */}
-      {showEvidence && (
+      {showEvidence && validationResult && (
         <EvidenceViewer 
-          evidenceFiles={mockData.evidence}
+          evidenceFiles={validationResult.evidence}
           onModalClose={handleCloseModals}
           initiallyOpen={true}
         />
@@ -235,10 +246,10 @@ export default function Home() {
         <ArchitectureInfo onClose={handleCloseModals} />
       )}
 
-      {showActions && (
+      {showActions && validationResult && (
         <ActionPanel 
-          validationResult={mockData.validationResult}
-          accountData={mockData.accountData}
+          validationResult={validationResult.validationResult}
+          accountData={validationResult.accountData}
           onClose={handleCloseModals}
           isVisible={true}
         />
