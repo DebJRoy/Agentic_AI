@@ -19,9 +19,13 @@ export const getMockValidationResult = (): ValidationResult => {
   return {
     compliance: 'Partially Compliant',
     score: '78%',
-    violations: ['Inactive > 90 days'],
-    recommendation: 'Get owner reconfirmation for inactive account',
-    explanation: 'The service account has not been used for 125 days. Valid email approval found, but account requires reactivation confirmation due to extended inactivity.'
+    violations: [
+      'Inactive > 90 days',
+      'Approval documentation expired',
+      'Missing quarterly access review'
+    ],
+    recommendation: 'Get owner reconfirmation for inactive account and update approval documentation',
+    explanation: 'The service account has not been used for 125 days, exceeding our 90-day compliance threshold. The approval documentation (JIRA-1182) is stale and requires renewal. Additionally, the quarterly access review is overdue.'
   };
 };
 

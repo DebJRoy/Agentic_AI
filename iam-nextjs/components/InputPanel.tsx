@@ -3,19 +3,28 @@
 import React, { useState } from 'react';
 
 interface InputPanelProps {
-  onValidate: (accountId: string, region: string) => void;
+  onValidate: (accountId: string) => void;
   isLoading: boolean;
+  onCompleteReset: () => void;
 }
 
-const InputPanel: React.FC<InputPanelProps> = ({ onValidate, isLoading }) => {
+const InputPanel: React.FC<InputPanelProps> = ({ onValidate, isLoading, onCompleteReset }) => {
   const [accountId, setAccountId] = useState('');
   const [region, setRegion] = useState('us-east-1');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (accountId.trim()) {
-      onValidate(accountId.trim(), region);
+      onValidate(accountId.trim());
     }
+  };
+
+  const handleReset = () => {
+    // Reset local form state
+    setAccountId('');
+    setRegion('us-east-1');
+    // Reset entire application state
+    onCompleteReset();
   };
 
   return (
@@ -90,10 +99,7 @@ const InputPanel: React.FC<InputPanelProps> = ({ onValidate, isLoading }) => {
               <button
                 type="button"
                 className="btn btn-wf-secondary btn-lg px-4"
-                onClick={() => {
-                  setAccountId('');
-                  setRegion('us-east-1');
-                }}
+                onClick={handleReset}
                 disabled={isLoading}
               >
                 <svg className="me-2" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

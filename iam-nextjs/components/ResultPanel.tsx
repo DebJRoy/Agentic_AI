@@ -3,7 +3,11 @@
 import React from 'react';
 
 interface ResultPanelProps {
-  result: any;
+  result: {
+    accountData: any;
+    validationResult: any;
+    evidence: any;
+  };
   onViewEvidence: () => void;
   onProvideFeedback: () => void;
   onTakeAction: () => void;
@@ -19,6 +23,33 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, onViewEvidence, onPro
     }
   };
 
+  const getViolationSeverity = (violation: string) => {
+    const v = violation.toLowerCase();
+    if (v.includes('inactive') || v.includes('dormant') || v.includes('unused')) {
+      return { severity: 'HIGH', icon: '⚠️', color: 'text-danger' };
+    }
+    if (v.includes('expired') || v.includes('stale') || v.includes('outdated')) {
+      return { severity: 'MEDIUM', icon: '⏰', color: 'text-warning' };
+    }
+    if (v.includes('permission') || v.includes('access') || v.includes('privilege')) {
+      return { severity: 'MEDIUM', icon: '🔒', color: 'text-warning' };
+    }
+    return { severity: 'LOW', icon: '📋', color: 'text-info' };
+  };
+
+  const formatViolation = (violation: string | any) => {
+    // Handle both string and object formats
+    const violationText = typeof violation === 'string' ? violation : violation.type || violation.message || 'Unknown violation';
+    const { severity, icon, color } = getViolationSeverity(violationText);
+    
+    return {
+      text: violationText,
+      severity,
+      icon,
+      color
+    };
+  };
+
   return (
     <div className="card card-wf mb-4">
       <div className="card-body p-4">
@@ -26,12 +57,12 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, onViewEvidence, onPro
           <div>
             <h3 className="h4 fw-bold mb-2">Validation Results</h3>
             <p className="text-muted mb-0">
-              Account ID: <span className="fw-semibold text-dark">{result.accountId}</span>
+              Account ID: <span className="fw-semibold text-dark">{result.accountData.account_id}</span>
             </p>
           </div>
           <div>
-            <span className={`badge ${getRiskBadgeClass(result.riskScore)} badge-lg px-3 py-2 fs-6`}>
-              {result.riskScore} RISK
+            <span className={`badge ${getRiskBadgeClass(result.validationResult.violations?.length > 2 ? 'HIGH' : result.validationResult.violations?.length > 0 ? 'MEDIUM' : 'LOW')} badge-lg px-3 py-2 fs-6`}>
+              {result.validationResult.violations?.length > 2 ? 'HIGH' : result.validationResult.violations?.length > 0 ? 'MEDIUM' : 'LOW'} RISK
             </span>
           </div>
         </div>
@@ -49,19 +80,45 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, onViewEvidence, onPro
                 <div className="row g-2">
                   <div className="col-12">
                     <small className="text-muted">Account Type</small>
-                    <div className="fw-semibold">{result.accountType}</div>
+                    <div className="fw-semibold">{result.accountData.metadata?.account_type || 'Standard Service Account'}</div>
+                  </div>
+                  <div className="col-12">
+                    <small className="text-muted">Application</small>
+                    <div className="fw-semibold">{result.accountData.application}</div>
+                  </div>
+                  <div className="col-12">
+                    <small className="text-muted">Owner</small>
+                    <div className="fw-semibold">{result.accountData.owner}</div>
                   </div>
                   <div className="col-12">
                     <small className="text-muted">Status</small>
                     <div className="fw-semibold">
-                      <span className={`badge ${result.status === 'Active' ? 'bg-success' : 'bg-secondary'} me-2`}>
-                        {result.status}
+                      <span className={`badge ${result.accountData.metadata?.last_activity_days < 90 ? 'bg-success' : 'bg-warning'} me-2`}>
+                        {result.accountData.metadata?.last_activity_days < 90 ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                   </div>
                   <div className="col-12">
                     <small className="text-muted">Last Activity</small>
-                    <div className="fw-semibold">{new Date(result.lastActivity).toLocaleDateString()}</div>
+                    <div className="fw-semibold">
+                      {result.accountData.last_used ? (() => {
+                        try {
+                          const date = new Date(result.accountData.last_used);
+                          return isNaN(date.getTime()) ? 'Invalid Date' : date.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          });
+                        } catch (error) {
+                          return 'Invalid Date';
+                        }
+                      })() : 'Unknown'}
+                      {result.accountData.metadata?.last_activity_days && (
+                        <span className="text-muted ms-2">
+                          ({result.accountData.metadata.last_activity_days} days ago)
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -79,24 +136,60 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, onViewEvidence, onPro
                 </h5>
                 <div className="row g-2">
                   <div className="col-12">
-                    <small className="text-muted">Violations Found</small>
+                    <small className="text-muted">Compliance Status</small>
                     <div className="fw-semibold">
-                      {result.violations?.length || 0} issues
+                      <span className={`badge ${result.validationResult.compliance === 'Partially Compliant' ? 'bg-warning text-dark' : result.validationResult.compliance === 'Compliant' ? 'bg-success' : 'bg-danger'} me-2`}>
+                        {result.validationResult.compliance}
+                      </span>
                     </div>
                   </div>
-                  {result.violations && result.violations.length > 0 && (
+                  <div className="col-12">
+                    <small className="text-muted">Violations Found</small>
+                    <div className="fw-semibold">
+                      <span className={`badge ${result.validationResult.violations?.length > 0 ? 'bg-danger' : 'bg-success'} me-2`}>
+                        {result.validationResult.violations?.length || 0}
+                      </span>
+                      {result.validationResult.violations?.length === 1 ? 'issue' : 'issues'}
+                    </div>
+                  </div>
+                  {result.validationResult.violations && result.validationResult.violations.length > 0 && (
                     <div className="col-12">
                       <small className="text-muted">Issues</small>
-                      <ul className="list-unstyled mb-0">
-                        {result.violations.slice(0, 2).map((violation: any, index: number) => (
-                          <li key={index} className="small text-danger fw-medium mb-1">
-                            <svg className="me-1" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
-                            </svg>
-                            {violation.type}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="mt-2">
+                        {result.validationResult.violations.map((violation: any, index: number) => {
+                          const formatted = formatViolation(violation);
+                          return (
+                            <div key={index} className="d-flex align-items-start mb-2 p-2 bg-light rounded">
+                              <span className="me-2 fs-5">{formatted.icon}</span>
+                              <div className="flex-grow-1">
+                                <div className={`fw-medium ${formatted.color} mb-1`}>
+                                  {formatted.text}
+                                </div>
+                                <small className="text-muted">
+                                  Severity: <span className={`fw-bold ${formatted.color}`}>{formatted.severity}</span>
+                                </small>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {result.validationResult.violations.length > 2 && (
+                          <div className="text-center mt-2">
+                            <button className="btn btn-sm btn-outline-secondary" onClick={onViewEvidence}>
+                              View All Issues ({result.validationResult.violations.length})
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {(!result.validationResult.violations || result.validationResult.violations.length === 0) && (
+                    <div className="col-12">
+                      <div className="d-flex align-items-center text-success">
+                        <svg className="me-2" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        </svg>
+                        <small className="fw-medium">No compliance violations detected</small>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -113,13 +206,33 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, onViewEvidence, onPro
               </svg>
               Validation Summary
             </h5>
-            <p className="text-dark mb-0">
-              This service account has been analyzed for compliance with Wells Fargo security policies. 
-              {result.violations?.length > 0 
-                ? ` Found ${result.violations.length} compliance issues that require attention.`
-                : ' No compliance violations detected - account appears to be in good standing.'
-              }
-            </p>
+            <div className="row">
+              <div className="col-md-8">
+                <p className="text-dark mb-2">
+                  {result.validationResult.explanation || 'This service account has been analyzed for compliance with Wells Fargo security policies.'}
+                </p>
+                {result.validationResult.recommendation && (
+                  <div className="alert alert-info mb-0">
+                    <strong>Recommendation:</strong> {result.validationResult.recommendation}
+                  </div>
+                )}
+              </div>
+              <div className="col-md-4">
+                <div className="text-end">
+                  <small className="text-muted d-block">Compliance Score</small>
+                  <div className={`h4 fw-bold mb-0 ${result.validationResult.score === '78%' ? 'text-warning' : 'text-success'}`}>
+                    {result.validationResult.score}
+                  </div>
+                  <small className="text-muted">{result.validationResult.compliance}</small>
+                  <div className="mt-2">
+                    <small className="text-muted d-block">Risk Level</small>
+                    <span className={`badge ${result.validationResult.violations?.length > 2 ? 'bg-danger' : result.validationResult.violations?.length > 0 ? 'bg-warning text-dark' : 'bg-success'}`}>
+                      {result.validationResult.violations?.length > 2 ? 'High' : result.validationResult.violations?.length > 0 ? 'Medium' : 'Low'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         

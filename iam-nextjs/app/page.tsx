@@ -13,14 +13,18 @@ import { getMockServiceAccount, getMockValidationResult, getEvidenceFiles } from
 
 export default function Home() {
   const [isValidating, setIsValidating] = useState(false);
-  const [validationResult, setValidationResult] = useState<any>(null);
+  const [validationResult, setValidationResult] = useState<{
+    accountData: any;
+    validationResult: any;
+    evidence: any;
+  } | null>(null);
   const [showEvidence, setShowEvidence] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [showArchitecture, setShowArchitecture] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [complianceAlert, setComplianceAlert] = useState(true);
 
-  const handleValidate = async (accountId: string, region: string) => {
+  const handleValidate = async (accountId: string) => {
     setIsValidating(true);
     setValidationResult(null);
     
@@ -29,28 +33,29 @@ export default function Home() {
       // Get the mock data
       const mockAccountData = getMockServiceAccount(accountId);
       const mockValidationResult = getMockValidationResult();
-      const mockEvidenceFiles = getEvidenceFiles();
-
-      // Structure the data properly for ResultPanel
-      const structuredResult = {
-        accountId: mockAccountData.account_id,
-        accountType: mockAccountData.metadata.account_type,
-        status: 'Active',
-        lastActivity: mockAccountData.last_used,
-        riskScore: mockValidationResult.score === '78%' ? 'MEDIUM' : 'LOW',
-        violations: mockValidationResult.violations,
-        compliance: mockValidationResult.compliance,
-        recommendation: mockValidationResult.recommendation,
-        explanation: mockValidationResult.explanation,
-        // Include the original data for evidence viewer
+      const mockEvidence = getEvidenceFiles();
+      
+      // Create the result object that matches what ResultPanel expects
+      const result = {
         accountData: mockAccountData,
         validationResult: mockValidationResult,
-        evidence: mockEvidenceFiles
+        evidence: mockEvidence
       };
-
-      setValidationResult(structuredResult);
+      
+      setValidationResult(result);
       setIsValidating(false);
     }, 2000);
+  };
+
+  const handleCompleteReset = () => {
+    // Reset all application state
+    setIsValidating(false);
+    setValidationResult(null);
+    setShowEvidence(false);
+    setShowFeedback(false);
+    setShowArchitecture(false);
+    setShowActions(false);
+    setComplianceAlert(true);
   };
 
   const handleViewEvidence = () => {
@@ -120,6 +125,7 @@ export default function Home() {
               <InputPanel 
                 onValidate={handleValidate} 
                 isLoading={isValidating} 
+                onCompleteReset={handleCompleteReset}
               />
               
               {validationResult && (
@@ -247,11 +253,9 @@ export default function Home() {
       )}
 
       {showActions && validationResult && (
-        <ActionPanel 
-          validationResult={validationResult.validationResult}
-          accountData={validationResult.accountData}
-          onClose={handleCloseModals}
-          isVisible={true}
+        <ActionPanel
+          result={validationResult}
+          onClose={() => setShowActions(false)}
         />
       )}
     </div>

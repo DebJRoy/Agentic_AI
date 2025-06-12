@@ -1,46 +1,34 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { ServiceAccount, ValidationResult } from '../types';
 import { getGenAIChatResponse } from '../data/mockData';
 
 interface ChatMessage {
-  id: string;
   text: string;
-  isBot: boolean;
-  timestamp: Date;
-  context?: {
-    accountId?: string;
-    riskScore?: string;
-    violations?: string[];
-  };
+  sender: 'user' | 'bot';
+  time: string;
 }
 
 interface ChatbotProps {
-  accountData?: any;
-  validationResult?: any;
+  accountData?: ServiceAccount | null;
+  validationResult?: ValidationResult | null;
 }
 
 const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
-      id: '1',
       text: accountData 
         ? `Hello! I'm your AI-powered IAM specialist. I can see you're working with service account "${accountData.account_id}". I have full context about this account's validation results, compliance status, and can provide expert guidance on any IAM-related questions. How can I assist you today?`
         : 'Hello! I\'m your AI-powered IAM specialist with deep expertise in identity and access management. I can help you with service account validation, compliance analysis, security best practices, and remediation strategies. What would you like to know?',
-      isBot: true,
-      timestamp: new Date(),
-      context: accountData ? {
-        accountId: accountData.account_id,
-        riskScore: validationResult?.riskScore,
-        violations: validationResult?.violations
-      } : undefined
+      sender: 'bot',
+      time: new Date().toLocaleTimeString()
     }
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [conversationContext, setConversationContext] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,18 +39,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
   useEffect(() => {
     if (accountData && messages.length === 1) {
       setMessages([{
-        id: '1',
         text: `Hello! I'm your AI-powered IAM specialist. I can see you're working with service account "${accountData.account_id}". I have full context about this account's validation results, compliance status, and can provide expert guidance on any IAM-related questions. How can I assist you today?`,
-        isBot: true,
-        timestamp: new Date(),
-        context: {
-          accountId: accountData.account_id,
-          riskScore: validationResult?.riskScore,
-          violations: validationResult?.violations
-        }
+        sender: 'bot',
+        time: new Date().toLocaleTimeString()
       }]);
     }
-  }, [accountData, validationResult]);
+  }, [accountData, validationResult, messages.length]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -73,10 +55,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
   }, [messages]);
 
   const getEnhancedGenAIResponse = (input: string): string => {
-    // Build conversation context for more intelligent responses
-    const recentMessages = messages.slice(-5).map(m => m.text).join(' ');
-    const contextualInput = `${recentMessages} ${input}`;
-    
     // Use the advanced GenAI response function with full context
     const baseResponse = getGenAIChatResponse(input, accountData, validationResult);
     
@@ -101,7 +79,8 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
       
       // Risk assessment queries
       if (lowerInput.includes('risk assessment') || lowerInput.includes('security risk')) {
-        return `🛡️ **Comprehensive Risk Assessment for ${accountData.account_id}:**\n\n**Current Risk Level:** ${validationResult.riskScore || 'MEDIUM'}\n\n**Risk Factors:**\n• Inactivity: ${accountData.metadata?.last_activity_days} days (${accountData.metadata?.last_activity_days > 90 ? '🔴 HIGH RISK' : '🟢 LOW RISK'})\n• Account Type: ${accountData.metadata?.account_type}\n• Application: ${accountData.application}\n\n**Security Implications:**\n• Dormant accounts increase attack surface\n• Stale approvals may not reflect current business needs\n• Potential for unauthorized access if compromised\n\n**Mitigation Strategy:**\n${validationResult.recommendation}\n\nWould you like me to create a detailed remediation plan?`;
+        const currentRisk = validationResult.score === '78%' ? 'MEDIUM' : 'LOW';
+        return `🛡️ **Comprehensive Risk Assessment for ${accountData.account_id}:**\n\n**Current Risk Level:** ${currentRisk}\n\n**Risk Factors:**\n• Inactivity: ${accountData.metadata?.last_activity_days} days (${accountData.metadata?.last_activity_days > 90 ? '🔴 HIGH RISK' : '🟢 LOW RISK'})\n• Account Type: ${accountData.metadata?.account_type}\n• Application: ${accountData.application}\n\n**Security Implications:**\n• Dormant accounts increase attack surface\n• Stale approvals may not reflect current business needs\n• Potential for unauthorized access if compromised\n\n**Mitigation Strategy:**\n${validationResult.recommendation}\n\nWould you like me to create a detailed remediation plan?`;
       }
     }
     
@@ -118,34 +97,21 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
     if (!inputValue.trim()) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
       text: inputValue.trim(),
-      isBot: false,
-      timestamp: new Date(),
-      context: accountData ? {
-        accountId: accountData.account_id,
-        riskScore: validationResult?.riskScore,
-        violations: validationResult?.violations
-      } : undefined
+      sender: 'user',
+      time: new Date().toLocaleTimeString()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setConversationContext(prev => [...prev.slice(-4), inputValue.trim()]); // Keep last 5 messages for context
     setInputValue('');
     setIsTyping(true);
 
     // Simulate AI processing time with realistic delay
     setTimeout(() => {
       const botResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
         text: getEnhancedGenAIResponse(inputValue),
-        isBot: true,
-        timestamp: new Date(),
-        context: accountData ? {
-          accountId: accountData.account_id,
-          riskScore: validationResult?.riskScore,
-          violations: validationResult?.violations
-        } : undefined
+        sender: 'bot',
+        time: new Date().toLocaleTimeString()
       };
 
       setMessages(prev => [...prev, botResponse]);
@@ -183,6 +149,41 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
     actions.push("Create remediation plan");
     
     return actions;
+  };
+
+  const handleQuickAction = (action: string) => {
+    const userMessage: ChatMessage = {
+      text: action,
+      sender: 'user',
+      time: new Date().toLocaleTimeString()
+    };
+    
+    let botResponse = '';
+    
+    switch (action) {
+      case 'How do I fix these violations?':
+        botResponse = getGenAIChatResponse('fix violations', accountData, validationResult);
+        break;
+      case "What's the risk assessment?":
+        botResponse = getGenAIChatResponse('risk assessment', accountData, validationResult);
+        break;
+      case 'Show me best practices':
+        botResponse = 'Here are IAM best practices:\n\n🔐 **Access Management:**\n• Implement principle of least privilege\n• Regular access reviews (quarterly)\n• Automated deprovisioning\n\n📋 **Service Accounts:**\n• Document business justification\n• Monitor account activity\n• Rotate credentials regularly\n\n🛡️ **Compliance:**\n• Maintain approval documentation\n• Track usage patterns\n• Implement segregation of duties';
+        break;
+      case 'Create remediation plan':
+        botResponse = getGenAIChatResponse('create remediation plan', accountData, validationResult);
+        break;
+      default:
+        botResponse = getGenAIChatResponse(action, accountData, validationResult);
+    }
+
+    const botMessage: ChatMessage = {
+      text: botResponse,
+      sender: 'bot',
+      time: new Date().toLocaleTimeString()
+    };
+
+    setMessages(prev => [...prev, userMessage, botMessage]);
   };
 
   return (
@@ -233,16 +234,11 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
         {/* Chat Messages */}
         <div className="chat-messages">
           {messages.map((message) => (
-            <div key={message.id} className={`chat-message ${message.isBot ? 'bot' : 'user'}`}>
+            <div key={message.time} className={`chat-message ${message.sender === 'bot' ? 'bot' : 'user'}`}>
               <div className="chat-message-content">
                 <div style={{ whiteSpace: 'pre-line' }}>{message.text}</div>
-                <div className={`small mt-1 ${message.isBot ? 'text-muted' : 'text-white-50'}`} style={{ minHeight: '1rem' }}>
-                  {isClient ? formatTime(message.timestamp) : ''}
-                  {message.context && (
-                    <span className="ms-2">
-                      <i className="fas fa-brain" title="AI Context Aware"></i>
-                    </span>
-                  )}
+                <div className={`small mt-1 ${message.sender === 'bot' ? 'text-muted' : 'text-white-50'}`} style={{ minHeight: '1rem' }}>
+                  {isClient ? formatTime(new Date(message.time)) : ''}
                 </div>
               </div>
             </div>
@@ -292,7 +288,7 @@ const Chatbot: React.FC<ChatbotProps> = ({ accountData, validationResult }) => {
                   <button
                     key={index}
                     className="btn btn-outline-secondary btn-sm"
-                    onClick={() => setInputValue(action)}
+                    onClick={() => handleQuickAction(action)}
                     style={{ fontSize: '0.75rem' }}
                   >
                     {action}

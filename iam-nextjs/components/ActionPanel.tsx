@@ -3,17 +3,16 @@
 import React, { useState } from 'react';
 
 interface ActionPanelProps {
-  validationResult: any;
-  accountData: any;
+  result: {
+    accountData: any;
+    validationResult: any;
+  };
   onClose: () => void;
-  isVisible: boolean;
 }
 
 const ActionPanel: React.FC<ActionPanelProps> = ({ 
-  validationResult, 
-  accountData, 
-  onClose, 
-  isVisible 
+  result, 
+  onClose 
 }) => {
   const [selectedAction, setSelectedAction] = useState<string>('');
   const [actionInProgress, setActionInProgress] = useState(false);
@@ -105,8 +104,6 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     }, 2000);
   };
 
-  if (!isVisible) return null;
-
   return (
     <div 
       className="modal fade show d-block" 
@@ -134,26 +131,26 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
                 <div className="row">
                   <div className="col-md-6">
                     <div className="mb-2">
-                      <strong>Account ID:</strong> {accountData?.account_id || 'N/A'}
+                      <strong>Account ID:</strong> {result.accountData?.account_id || 'N/A'}
                     </div>
                     <div className="mb-2">
-                      <strong>Application:</strong> {accountData?.application || 'N/A'}
+                      <strong>Application:</strong> {result.accountData?.application || 'N/A'}
                     </div>
                     <div className="mb-2">
-                      <strong>Owner:</strong> {accountData?.owner || 'N/A'}
+                      <strong>Owner:</strong> {result.accountData?.owner || 'N/A'}
                     </div>
                   </div>
                   <div className="col-md-6">
                     <div className="mb-2">
                       <strong>Compliance Score:</strong> 
-                      <span className="badge bg-warning ms-2">{validationResult?.score || 'N/A'}</span>
+                      <span className="badge bg-warning ms-2">{result.validationResult?.score || 'N/A'}</span>
                     </div>
                     <div className="mb-2">
                       <strong>Status:</strong> 
-                      <span className="badge bg-secondary ms-2">{validationResult?.compliance || 'N/A'}</span>
+                      <span className="badge bg-secondary ms-2">{result.validationResult?.compliance || 'N/A'}</span>
                     </div>
                     <div className="mb-2">
-                      <strong>Last Activity:</strong> {accountData?.metadata?.last_activity_days || 'N/A'} days ago
+                      <strong>Last Activity:</strong> {result.accountData?.metadata?.last_activity_days || 'N/A'} days ago
                     </div>
                   </div>
                 </div>
